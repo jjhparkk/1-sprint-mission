@@ -1,30 +1,40 @@
-# 1. Amazon Corretto 17 이미지를 베이스 이미지로 사용하세요.
-FROM amazoncorretto:17
+# 빌드 스테이지
+FROM amazoncorretto:17 AS builder
 
-# 2. 작업 디렉토리를 설정하세요. (/app)
+# 작업 디렉토리 설정
 WORKDIR /app
 
-# 3. 프로젝트 파일을 컨테이너로 복사하세요. (.dockerignore 참고)
-COPY . .
+# Gradle Wrapper 파일 먼저 복사
+COPY gradle ./gradle
+COPY gradlew ./gradlew
 
-# 4. Gradle Wrapper 실행 권한 부여
-RUN chmod +x ./gradlew
+# Gradle 캐시를 위한 의존성 파일 복사
+COPY build.gradle settings.gradle ./
 
-# 5. Gradle Wrapper를 사용하여 애플리케이션을 빌드하세요. (테스트 제외)
-RUN ./gradlew build -x test --no-daemon
+# 의존성 다운로드
+RUN ./gradlew dependencies
+
+# 소스 코드 복사 및 빌드
+COPY src ./src
+RUN ./gradlew build -x test
+
+
+# 런타임 스테이지
+FROM amazoncorretto:17-alpine3.21
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# 7. 프로젝트 정보를 환경 변수로 설정하세요.
+ENV PROJECT_NAME=discodeit \
+    PROJECT_VERSION=1.2-M8 \
+    JVM_OPTS=""
+
+# 빌드 스테이지에서 jar 파일만 복사
+COPY --from=builder /app/build/libs/${PROJECT_NAME}-${PROJECT_VERSION}.jar ./
+
 
 # 6. 80 포트를 노출하도록 설정하세요.
 EXPOSE 80
 
-# 7. 프로젝트 정보를 환경 변수로 설정하세요.
-ENV PROJECT_NAME=discodeit
-ENV PROJECT_VERSION=1.2-M8
-
-# JVM 옵션을 ENV로 설정
-#ENV JVM_OPTS=$JVM_OPTS
-
-# 빌드된 jar 파일 실행
-#ENTRYPOINT sh -c "exec java $JVM_OPTS -jar build/libs/${PROJECT_NAME}-${PROJECT_VERSION}.jar"
-
-ENTRYPOINT ["sh", "-c", "java ${JVM_OPTS} -jar build/libs/${PROJECT_NAME}-${PROJECT_VERSION}.jar"]
-
+ENTRYPOINT ["sh", "-c", "java ${JVM_OPTS} -jar ${PROJECT_NAME}-${PROJECT_VERSION}.jar"]

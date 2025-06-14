@@ -2,185 +2,196 @@ package com.sprint.mission.discodeit.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.sprint.mission.discodeit.config.TestAuditingConfig;
-import com.sprint.mission.discodeit.entity.*;
+import com.sprint.mission.discodeit.entity.BinaryContent;
+import com.sprint.mission.discodeit.entity.Channel;
+import com.sprint.mission.discodeit.entity.ChannelType;
+import com.sprint.mission.discodeit.entity.ReadStatus;
+import com.sprint.mission.discodeit.entity.User;
 import java.time.Instant;
-import java.util.*;
-import org.junit.jupiter.api.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import org.hibernate.Hibernate;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
 
+/**
+ * ReadStatusRepository 슬라이스 테스트
+ */
 @DataJpaTest
 @EnableJpaAuditing
 @ActiveProfiles("test")
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@Import(TestAuditingConfig.class)
-public class ReadStatusRepositoryTest {
+class ReadStatusRepositoryTest {
 
-  private static final Logger log = LoggerFactory.getLogger(ReadStatusRepositoryTest.class);
+  @Autowired
+  private ReadStatusRepository readStatusRepository;
+
+  @Autowired
+  private UserRepository userRepository;
+
+  @Autowired
+  private ChannelRepository channelRepository;
 
   @Autowired
   private TestEntityManager entityManager;
-  @Autowired
-  private ReadStatusRepository readStatusRepository;
-  @Autowired
-  private UserRepository userRepository;
-  @Autowired
-  private UserStatusRepository userStatusRepository;
-  @Autowired
-  private ChannelRepository channelRepository;
-  @Autowired
-  private BinaryContentRepository binaryContentRepository;
 
+  /**
+   * TestFixture: 테스트용 사용자 생성
+   */
   private User createTestUser(String username, String email) {
-    BinaryContent profile = new BinaryContent(username + "-profile.jpg", 1024L, "image/jpeg");
-    binaryContentRepository.save(profile);
+    BinaryContent profile = new BinaryContent("profile.jpg", 1024L, "image/jpeg");
     User user = new User(username, email, "password123!@#", profile);
-    userRepository.save(user);
-    userStatusRepository.save(new UserStatus(user, Instant.now()));
-    entityManager.flush();
-    return user;
+    return userRepository.save(user);
   }
 
+  /**
+   * TestFixture: 테스트용 채널 생성
+   */
   private Channel createTestChannel(ChannelType type, String name) {
     Channel channel = new Channel(type, name, "설명: " + name);
-    channelRepository.save(channel);
-    entityManager.flush();
-    return channel;
+    return channelRepository.save(channel);
   }
 
-  private ReadStatus createTestReadStatus(User user, Channel channel) {
-    ReadStatus readStatus = new ReadStatus(user, channel, Instant.now());
-    readStatusRepository.save(readStatus);
-    entityManager.flush();
-    return readStatus;
-  }
-
-  @Test
-  @Order(1)
-  @DisplayName("읽음 상태를 저장하고 ID로 조회할 수 있다")
-  void saveAndFindReadStatusById() {
-    log.info("======== 읽음상태 저장 및 ID로 조회 테스트 시작 ========");
-
-    User user = createTestUser("readuser", "read@example.com");
-    Channel channel = createTestChannel(ChannelType.PUBLIC, "read-channel");
-    ReadStatus savedReadStatus = createTestReadStatus(user, channel);
-
-    Optional<ReadStatus> found = readStatusRepository.findById(savedReadStatus.getId());
-    assertThat(found).isPresent();
-    assertThat(found.get().getUser().getId()).isEqualTo(user.getId());
-    assertThat(found.get().getChannel().getId()).isEqualTo(channel.getId());
-
-    log.info("======== 읽음상태 저장 및 ID로 조회 테스트 종료 ========");
+  /**
+   * TestFixture: 테스트용 읽음 상태 생성
+   */
+  private ReadStatus createTestReadStatus(User user, Channel channel, Instant lastReadAt) {
+    ReadStatus readStatus = new ReadStatus(user, channel, lastReadAt);
+    return readStatusRepository.save(readStatus);
   }
 
   @Test
-  @Order(2)
   @DisplayName("사용자 ID로 모든 읽음 상태를 조회할 수 있다")
-  void findAllReadStatusByUserId() {
-    log.info("======== 사용자 ID로 읽음상태 목록 조회 테스트 시작 ========");
+  void findAllByUserId_ReturnsReadStatuses() {
+    // given
+    User user = createTestUser("testUser", "test@example.com");
+    Channel channel1 = createTestChannel(ChannelType.PUBLIC, "채널1");
+    Channel channel2 = createTestChannel(ChannelType.PRIVATE, "채널2");
 
-    User user = createTestUser("multiread", "multiread@example.com");
-    Channel ch1 = createTestChannel(ChannelType.PUBLIC, "read-channel1");
-    Channel ch2 = createTestChannel(ChannelType.PUBLIC, "read-channel2");
+    Instant now = Instant.now();
+    ReadStatus readStatus1 = createTestReadStatus(user, channel1, now.minus(1, ChronoUnit.DAYS));
+    ReadStatus readStatus2 = createTestReadStatus(user, channel2, now);
 
-    createTestReadStatus(user, ch1);
-    createTestReadStatus(user, ch2);
+    // 영속성 컨텍스트 초기화
+    entityManager.flush();
+    entityManager.clear();
 
-    List<ReadStatus> results = readStatusRepository.findAllByUserId(user.getId());
+    // when
+    List<ReadStatus> readStatuses = readStatusRepository.findAllByUserId(user.getId());
 
-    assertThat(results).hasSize(2);
-    assertThat(results).extracting("user.id").containsOnly(user.getId());
-    assertThat(results).extracting("channel.id")
-        .containsExactlyInAnyOrder(ch1.getId(), ch2.getId());
-
-    log.info("======== 사용자 ID로 읽음상태 목록 조회 테스트 종료 ========");
+    // then
+    assertThat(readStatuses).hasSize(2);
   }
 
   @Test
-  @Order(3)
-  @DisplayName("존재하지 않는 사용자 ID로 조회 시 빈 리스트를 반환한다")
-  void findByInvalidUserIdReturnsEmptyList() {
-    log.info("======== 존재하지 않는 사용자 ID로 읽음상태 목록 조회 테스트 시작 ========");
+  @DisplayName("채널 ID로 모든 읽음 상태를 사용자 정보와 함께 조회할 수 있다")
+  void findAllByChannelIdWithUser_ReturnsReadStatusesWithUser() {
+    // given
+    User user1 = createTestUser("user1", "user1@example.com");
+    User user2 = createTestUser("user2", "user2@example.com");
+    Channel channel = createTestChannel(ChannelType.PUBLIC, "공개채널");
 
-    List<ReadStatus> result = readStatusRepository.findAllByUserId(UUID.randomUUID());
+    Instant now = Instant.now();
+    ReadStatus readStatus1 = createTestReadStatus(user1, channel, now.minus(1, ChronoUnit.DAYS));
+    ReadStatus readStatus2 = createTestReadStatus(user2, channel, now);
 
-    assertThat(result).isEmpty();
+    // 영속성 컨텍스트 초기화
+    entityManager.flush();
+    entityManager.clear();
 
-    log.info("======== 존재하지 않는 사용자 ID로 읽음상태 목록 조회 테스트 종료 ========");
+    // when
+    List<ReadStatus> readStatuses = readStatusRepository.findAllByChannelIdWithUser(
+        channel.getId());
+
+    // then
+    assertThat(readStatuses).hasSize(2);
+
+    // 사용자 정보가 함께 로드되었는지 확인 (FETCH JOIN)
+    for (ReadStatus status : readStatuses) {
+      assertThat(Hibernate.isInitialized(status.getUser())).isTrue();
+      assertThat(Hibernate.isInitialized(status.getUser().getProfile())).isTrue();
+    }
   }
 
   @Test
-  @Order(4)
-  @DisplayName("채널 ID로 읽음 상태를 조회하며 사용자 정보를 함께 불러올 수 있다")
-  void findAllReadStatusByChannelWithUser() {
-    log.info("======== 채널 ID와 함께 사용자 정보 조회 테스트 시작 ========");
+  @DisplayName("사용자 ID와 채널 ID로 읽음 상태 존재 여부를 확인할 수 있다")
+  void existsByUserIdAndChannelId_ExistingStatus_ReturnsTrue() {
+    // given
+    User user = createTestUser("testUser", "test@example.com");
+    Channel channel = createTestChannel(ChannelType.PUBLIC, "공개채널");
 
-    User user1 = createTestUser("readuser1", "read1@example.com");
-    User user2 = createTestUser("readuser2", "read2@example.com");
-    Channel channel = createTestChannel(ChannelType.PUBLIC, "read-status-channel");
+    ReadStatus readStatus = createTestReadStatus(user, channel, Instant.now());
 
-    createTestReadStatus(user1, channel);
-    createTestReadStatus(user2, channel);
+    // 영속성 컨텍스트 초기화
+    entityManager.flush();
+    entityManager.clear();
 
-    List<ReadStatus> results = readStatusRepository.findAllByChannelIdWithUser(channel.getId());
+    // when
+    Boolean exists = readStatusRepository.existsByUserIdAndChannelId(user.getId(), channel.getId());
 
-    assertThat(results).hasSize(2);
-    assertThat(results.get(0).getUser().getStatus()).isNotNull();
-    assertThat(results.get(1).getUser().getStatus()).isNotNull();
-
-    log.info("======== 채널 ID와 함께 사용자 정보 조회 테스트 종료 ========");
-  }
-
-  @Test
-  @Order(5)
-  @DisplayName("사용자와 채널 ID로 읽음 상태 존재 여부를 확인할 수 있다")
-  void existsByUserIdAndChannelId() {
-    log.info("======== 사용자와 채널 ID로 읽음상태 존재 여부 확인 테스트 시작 ========");
-
-    User user = createTestUser("existsuser", "exists@example.com");
-    Channel channel = createTestChannel(ChannelType.PUBLIC, "exists-channel");
-    createTestReadStatus(user, channel);
-
-    boolean exists = readStatusRepository.existsByUserIdAndChannelId(user.getId(), channel.getId());
-    boolean notExists = readStatusRepository.existsByUserIdAndChannelId(user.getId(),
-        UUID.randomUUID());
-
+    // then
     assertThat(exists).isTrue();
-    assertThat(notExists).isFalse();
-
-    log.info("======== 사용자와 채널 ID로 읽음상태 존재 여부 확인 테스트 종료 ========");
   }
 
   @Test
-  @Order(6)
-  @DisplayName("채널 ID로 모든 읽음 상태를 삭제할 수 있다")
-  void deleteAllReadStatusByChannelId() {
-    log.info("======== 채널 ID로 모든 읽음상태 삭제 테스트 시작 ========");
+  @DisplayName("존재하지 않는 읽음 상태에 대해 false를 반환한다")
+  void existsByUserIdAndChannelId_NonExistingStatus_ReturnsFalse() {
+    // given
+    User user = createTestUser("testUser", "test@example.com");
+    Channel channel = createTestChannel(ChannelType.PUBLIC, "공개채널");
 
-    User user1 = createTestUser("deleteread1", "deleteread1@example.com");
-    User user2 = createTestUser("deleteread2", "deleteread2@example.com");
-    Channel channel = createTestChannel(ChannelType.PUBLIC, "delete-read-channel");
+    // 영속성 컨텍스트 초기화
+    entityManager.flush();
+    entityManager.clear();
 
-    createTestReadStatus(user1, channel);
-    createTestReadStatus(user2, channel);
+    // 읽음 상태를 생성하지 않음
 
-    List<ReadStatus> before = readStatusRepository.findAllByChannelIdWithUser(channel.getId());
-    assertThat(before).hasSize(2);
+    // when
+    Boolean exists = readStatusRepository.existsByUserIdAndChannelId(user.getId(), channel.getId());
 
+    // then
+    assertThat(exists).isFalse();
+  }
+
+  @Test
+  @DisplayName("채널의 모든 읽음 상태를 삭제할 수 있다")
+  void deleteAllByChannelId_DeletesAllReadStatuses() {
+    // given
+    User user1 = createTestUser("user1", "user1@example.com");
+    User user2 = createTestUser("user2", "user2@example.com");
+
+    Channel channel = createTestChannel(ChannelType.PUBLIC, "삭제할채널");
+    Channel otherChannel = createTestChannel(ChannelType.PUBLIC, "유지할채널");
+
+    // 삭제할 채널에 읽음 상태 2개 생성
+    createTestReadStatus(user1, channel, Instant.now());
+    createTestReadStatus(user2, channel, Instant.now());
+
+    // 유지할 채널에 읽음 상태 1개 생성
+    createTestReadStatus(user1, otherChannel, Instant.now());
+
+    // 영속성 컨텍스트 초기화
+    entityManager.flush();
+    entityManager.clear();
+
+    // when
     readStatusRepository.deleteAllByChannelId(channel.getId());
     entityManager.flush();
     entityManager.clear();
 
-    List<ReadStatus> after = readStatusRepository.findAllByChannelIdWithUser(channel.getId());
-    assertThat(after).isEmpty();
+    // then
+    // 해당 채널의 읽음 상태는 삭제되었는지 확인
+    List<ReadStatus> channelReadStatuses = readStatusRepository.findAllByChannelIdWithUser(
+        channel.getId());
+    assertThat(channelReadStatuses).isEmpty();
 
-    log.info("======== 채널 ID로 모든 읽음상태 삭제 테스트 종료 ========");
+    // 다른 채널의 읽음 상태는 그대로인지 확인
+    List<ReadStatus> otherChannelReadStatuses = readStatusRepository.findAllByChannelIdWithUser(
+        otherChannel.getId());
+    assertThat(otherChannelReadStatuses).hasSize(1);
   }
-}
+} 

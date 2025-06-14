@@ -4,34 +4,27 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 @Getter
-@Builder
+@RequiredArgsConstructor
 public class ErrorResponse {
 
-  private Instant timestamp;
-  private String code;
-  private String message;
-  private Map<String, Object> details;
-  private String exceptionType;
-  private int status;
+  private final Instant timestamp;
+  private final String code;
+  private final String message;
+  private final Map<String, Object> details;
+  private final String exceptionType;
+  private final int status;
 
-  public static ErrorResponseBuilder builder() {
-    return new ErrorResponseBuilder()
-        .timestamp(Instant.now())
-        .details(new HashMap<>());
+  public ErrorResponse(DiscodeitException exception, int status) {
+    this(Instant.now(), exception.getErrorCode().name(), exception.getMessage(),
+        exception.getDetails(), exception.getClass().getSimpleName(), status);
   }
 
-  public static ErrorResponse of(DiscodeitException e) {
-    return ErrorResponse.builder()
-        .timestamp(e.getTimestamp())
-        .code(e.getErrorCode().name())
-        .message(e.getMessage())
-        .details(e.getDetails())
-        .exceptionType(e.getClass().getSimpleName())
-        .status(e.getErrorCode().getHttpStatus().value())
-        .build();
+  public ErrorResponse(Exception exception, int status) {
+    this(Instant.now(), exception.getClass().getSimpleName(), exception.getMessage(),
+        new HashMap<>(), exception.getClass().getSimpleName(), status);
   }
 }

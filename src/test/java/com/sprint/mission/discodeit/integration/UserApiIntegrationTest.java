@@ -21,8 +21,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,8 +36,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class UserApiIntegrationTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(UserApiIntegrationTest.class);
-
   @Autowired
   private MockMvc mockMvc;
 
@@ -49,11 +45,10 @@ class UserApiIntegrationTest {
   @Autowired
   private UserService userService;
 
+
   @Test
   @DisplayName("사용자 생성 API 통합 테스트")
   void createUser_Success() throws Exception {
-    logger.info("==== 사용자 생성 API 통합 테스트 시작 ====");
-
     // Given
     UserCreateRequest createRequest = new UserCreateRequest(
         "testuser",
@@ -75,8 +70,6 @@ class UserApiIntegrationTest {
         "test-image".getBytes()
     );
 
-    logger.info("사용자 생성 요청 데이터 준비 완료");
-
     // When & Then
     mockMvc.perform(multipart("/api/users")
             .file(userCreateRequestPart)
@@ -88,16 +81,11 @@ class UserApiIntegrationTest {
         .andExpect(jsonPath("$.email", is("test@example.com")))
         .andExpect(jsonPath("$.profile.fileName", is("profile.jpg")))
         .andExpect(jsonPath("$.online", is(true)));
-
-    logger.info("==== 사용자 생성 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("사용자 생성 실패 API 통합 테스트 - 유효하지 않은 요청")
   void createUser_Failure_InvalidRequest() throws Exception {
-    logger.info("==== 사용자 생성 실패 API 통합 테스트 - 유효하지 않은 요청 시작 ====");
-
     // Given
     UserCreateRequest invalidRequest = new UserCreateRequest(
         "t", // 최소 길이 위반
@@ -112,23 +100,16 @@ class UserApiIntegrationTest {
         objectMapper.writeValueAsBytes(invalidRequest)
     );
 
-    logger.info("유효하지 않은 사용자 생성 요청 데이터 준비 완료");
-
     // When & Then
     mockMvc.perform(multipart("/api/users")
             .file(userCreateRequestPart)
             .contentType(MediaType.MULTIPART_FORM_DATA_VALUE))
         .andExpect(status().isBadRequest());
-
-    logger.info("==== 사용자 생성 실패 API 통합 테스트 - 유효하지 않은 요청 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("모든 사용자 조회 API 통합 테스트")
   void findAllUsers_Success() throws Exception {
-    logger.info("==== 모든 사용자 조회 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 사용자 생성 - Service를 통해 초기화
     UserCreateRequest userRequest1 = new UserCreateRequest(
@@ -145,7 +126,6 @@ class UserApiIntegrationTest {
 
     userService.create(userRequest1, Optional.empty());
     userService.create(userRequest2, Optional.empty());
-    logger.info("테스트 사용자 2명 생성 완료");
 
     // When & Then
     mockMvc.perform(get("/api/users")
@@ -156,16 +136,11 @@ class UserApiIntegrationTest {
         .andExpect(jsonPath("$[0].email", is("user1@example.com")))
         .andExpect(jsonPath("$[1].username", is("user2")))
         .andExpect(jsonPath("$[1].email", is("user2@example.com")));
-
-    logger.info("==== 모든 사용자 조회 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("사용자 업데이트 API 통합 테스트")
   void updateUser_Success() throws Exception {
-    logger.info("==== 사용자 업데이트 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 사용자 생성 - Service를 통해 초기화
     UserCreateRequest createRequest = new UserCreateRequest(
@@ -176,7 +151,6 @@ class UserApiIntegrationTest {
 
     UserDto createdUser = userService.create(createRequest, Optional.empty());
     UUID userId = createdUser.id();
-    logger.info("원본 사용자 생성 완료: {}", userId);
 
     UserUpdateRequest updateRequest = new UserUpdateRequest(
         "updateduser",
@@ -198,8 +172,6 @@ class UserApiIntegrationTest {
         "updated-image".getBytes()
     );
 
-    logger.info("사용자 업데이트 요청 데이터 준비 완료");
-
     // When & Then
     mockMvc.perform(multipart("/api/users/{userId}", userId)
             .file(userUpdateRequestPart)
@@ -214,20 +186,13 @@ class UserApiIntegrationTest {
         .andExpect(jsonPath("$.username", is("updateduser")))
         .andExpect(jsonPath("$.email", is("updated@example.com")))
         .andExpect(jsonPath("$.profile.fileName", is("updated-profile.jpg")));
-
-    logger.info("==== 사용자 업데이트 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("사용자 업데이트 실패 API 통합 테스트 - 존재하지 않는 사용자")
   void updateUser_Failure_UserNotFound() throws Exception {
-    logger.info("==== 사용자 업데이트 실패 API 통합 테스트 - 존재하지 않는 사용자 시작 ====");
-
     // Given
     UUID nonExistentUserId = UUID.randomUUID();
-    logger.info("존재하지 않는 사용자 ID 생성: {}", nonExistentUserId);
-
     UserUpdateRequest updateRequest = new UserUpdateRequest(
         "updateduser",
         "updated@example.com",
@@ -241,8 +206,6 @@ class UserApiIntegrationTest {
         objectMapper.writeValueAsBytes(updateRequest)
     );
 
-    logger.info("사용자 업데이트 요청 데이터 준비 완료");
-
     // When & Then
     mockMvc.perform(multipart("/api/users/{userId}", nonExistentUserId)
             .file(userUpdateRequestPart)
@@ -252,16 +215,11 @@ class UserApiIntegrationTest {
               return request;
             }))
         .andExpect(status().isNotFound());
-
-    logger.info("==== 사용자 업데이트 실패 API 통합 테스트 - 존재하지 않는 사용자 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("사용자 삭제 API 통합 테스트")
   void deleteUser_Success() throws Exception {
-    logger.info("==== 사용자 삭제 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 사용자 생성 - Service를 통해 초기화
     UserCreateRequest createRequest = new UserCreateRequest(
@@ -272,44 +230,31 @@ class UserApiIntegrationTest {
 
     UserDto createdUser = userService.create(createRequest, Optional.empty());
     UUID userId = createdUser.id();
-    logger.info("삭제할 사용자 생성 완료: {}", userId);
 
     // When & Then
     mockMvc.perform(delete("/api/users/{userId}", userId))
         .andExpect(status().isNoContent());
-    logger.info("사용자 삭제 요청 완료");
 
     // 삭제 확인
     mockMvc.perform(get("/api/users"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[?(@.id == '" + userId + "')]").doesNotExist());
-
-    logger.info("==== 사용자 삭제 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("사용자 삭제 실패 API 통합 테스트 - 존재하지 않는 사용자")
   void deleteUser_Failure_UserNotFound() throws Exception {
-    logger.info("==== 사용자 삭제 실패 API 통합 테스트 - 존재하지 않는 사용자 시작 ====");
-
     // Given
     UUID nonExistentUserId = UUID.randomUUID();
-    logger.info("존재하지 않는 사용자 ID 생성: {}", nonExistentUserId);
 
     // When & Then
     mockMvc.perform(delete("/api/users/{userId}", nonExistentUserId))
         .andExpect(status().isNotFound());
-
-    logger.info("==== 사용자 삭제 실패 API 통합 테스트 - 존재하지 않는 사용자 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("사용자 상태 업데이트 API 통합 테스트")
   void updateUserStatus_Success() throws Exception {
-    logger.info("==== 사용자 상태 업데이트 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 사용자 생성 - Service를 통해 초기화
     UserCreateRequest createRequest = new UserCreateRequest(
@@ -320,14 +265,12 @@ class UserApiIntegrationTest {
 
     UserDto createdUser = userService.create(createRequest, Optional.empty());
     UUID userId = createdUser.id();
-    logger.info("테스트 사용자 생성 완료: {}", userId);
 
     Instant newLastActiveAt = Instant.now();
     UserStatusUpdateRequest statusUpdateRequest = new UserStatusUpdateRequest(
         newLastActiveAt
     );
     String requestBody = objectMapper.writeValueAsString(statusUpdateRequest);
-    logger.info("사용자 상태 업데이트 요청 데이터 준비 완료");
 
     // When & Then
     mockMvc.perform(patch("/api/users/{userId}/userStatus", userId)
@@ -335,33 +278,22 @@ class UserApiIntegrationTest {
             .content(requestBody))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.lastActiveAt", is(newLastActiveAt.toString())));
-
-    logger.info("==== 사용자 상태 업데이트 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("사용자 상태 업데이트 실패 API 통합 테스트 - 존재하지 않는 사용자")
   void updateUserStatus_Failure_UserNotFound() throws Exception {
-    logger.info("==== 사용자 상태 업데이트 실패 API 통합 테스트 - 존재하지 않는 사용자 시작 ====");
-
     // Given
     UUID nonExistentUserId = UUID.randomUUID();
-    logger.info("존재하지 않는 사용자 ID 생성: {}", nonExistentUserId);
-
     UserStatusUpdateRequest statusUpdateRequest = new UserStatusUpdateRequest(
         Instant.now()
     );
     String requestBody = objectMapper.writeValueAsString(statusUpdateRequest);
-    logger.info("사용자 상태 업데이트 요청 데이터 준비 완료");
 
     // When & Then
     mockMvc.perform(patch("/api/users/{userId}/userStatus", nonExistentUserId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isNotFound());
-
-    logger.info("==== 사용자 상태 업데이트 실패 API 통합 테스트 - 존재하지 않는 사용자 완료 ====");
-    System.out.println("\n");
   }
-}
+} 

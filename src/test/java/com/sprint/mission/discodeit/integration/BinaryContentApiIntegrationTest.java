@@ -26,8 +26,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,9 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional
 class BinaryContentApiIntegrationTest {
-
-  private static final Logger logger = LoggerFactory.getLogger(
-      BinaryContentApiIntegrationTest.class);
 
   @Autowired
   private MockMvc mockMvc;
@@ -66,8 +61,6 @@ class BinaryContentApiIntegrationTest {
   @Test
   @DisplayName("바이너리 컨텐츠 조회 API 통합 테스트")
   void findBinaryContent_Success() throws Exception {
-    logger.info("==== 바이너리 컨텐츠 조회 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 바이너리 컨텐츠 생성 (메시지 첨부파일을 통해 생성)
     // 사용자 생성
@@ -77,7 +70,6 @@ class BinaryContentApiIntegrationTest {
         "Password1!"
     );
     UserDto user = userService.create(userRequest, Optional.empty());
-    logger.info("테스트 사용자 생성 완료");
 
     // 채널 생성
     PublicChannelCreateRequest channelRequest = new PublicChannelCreateRequest(
@@ -85,7 +77,6 @@ class BinaryContentApiIntegrationTest {
         "테스트 채널 설명입니다."
     );
     var channel = channelService.create(channelRequest);
-    logger.info("테스트 채널 생성 완료");
 
     // 첨부파일이 있는 메시지 생성
     MessageCreateRequest messageRequest = new MessageCreateRequest(
@@ -103,7 +94,6 @@ class BinaryContentApiIntegrationTest {
 
     MessageDto message = messageService.create(messageRequest, List.of(attachmentRequest));
     UUID binaryContentId = message.attachments().get(0).id();
-    logger.info("첨부파일이 있는 메시지 생성 완료");
 
     // When & Then
     mockMvc.perform(get("/api/binaryContents/{binaryContentId}", binaryContentId))
@@ -112,33 +102,22 @@ class BinaryContentApiIntegrationTest {
         .andExpect(jsonPath("$.fileName", is("test.txt")))
         .andExpect(jsonPath("$.contentType", is(MediaType.TEXT_PLAIN_VALUE)))
         .andExpect(jsonPath("$.size", is(fileContent.length)));
-
-    logger.info("==== 바이너리 컨텐츠 조회 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("존재하지 않는 바이너리 컨텐츠 조회 API 통합 테스트")
   void findBinaryContent_Failure_NotFound() throws Exception {
-    logger.info("==== 존재하지 않는 바이너리 컨텐츠 조회 API 통합 테스트 시작 ====");
-
     // Given
     UUID nonExistentBinaryContentId = UUID.randomUUID();
-    logger.info("존재하지 않는 UUID 생성 완료: {}", nonExistentBinaryContentId);
 
     // When & Then
     mockMvc.perform(get("/api/binaryContents/{binaryContentId}", nonExistentBinaryContentId))
         .andExpect(status().isNotFound());
-
-    logger.info("==== 존재하지 않는 바이너리 컨텐츠 조회 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("여러 바이너리 컨텐츠 조회 API 통합 테스트")
   void findAllBinaryContentsByIds_Success() throws Exception {
-    logger.info("==== 여러 바이너리 컨텐츠 조회 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 바이너리 컨텐츠 생성 (메시지 첨부파일을 통해 생성)
     UserCreateRequest userRequest = new UserCreateRequest(
@@ -147,14 +126,12 @@ class BinaryContentApiIntegrationTest {
         "Password1!"
     );
     UserDto user = userService.create(userRequest, Optional.empty());
-    logger.info("테스트 사용자 생성 완료");
 
     PublicChannelCreateRequest channelRequest = new PublicChannelCreateRequest(
         "테스트 채널2",
         "테스트 채널 설명입니다."
     );
     var channel = channelService.create(channelRequest);
-    logger.info("테스트 채널 생성 완료");
 
     MessageCreateRequest messageRequest = new MessageCreateRequest(
         "첨부파일이 있는 메시지입니다.",
@@ -181,12 +158,10 @@ class BinaryContentApiIntegrationTest {
         messageRequest,
         List.of(attachmentRequest1, attachmentRequest2)
     );
-    logger.info("첨부파일 두 개를 가진 메시지 생성 완료");
 
     List<UUID> binaryContentIds = message.attachments().stream()
         .map(BinaryContentDto::id)
         .toList();
-    logger.info("바이너리 컨텐츠 ID 목록 생성 완료");
 
     // When & Then
     mockMvc.perform(get("/api/binaryContents")
@@ -195,16 +170,11 @@ class BinaryContentApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$", hasSize(2)))
         .andExpect(jsonPath("$[*].fileName", hasItems("test1.txt", "test2.txt")));
-
-    logger.info("==== 여러 바이너리 컨텐츠 조회 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("바이너리 컨텐츠 다운로드 API 통합 테스트")
   void downloadBinaryContent_Success() throws Exception {
-    logger.info("==== 바이너리 컨텐츠 다운로드 API 통합 테스트 시작 ====");
-
     // Given
     String fileContent = "다운로드 테스트 파일 내용입니다.";
     BinaryContentCreateRequest createRequest = new BinaryContentCreateRequest(
@@ -215,7 +185,6 @@ class BinaryContentApiIntegrationTest {
 
     BinaryContentDto binaryContent = binaryContentService.create(createRequest);
     UUID binaryContentId = binaryContent.id();
-    logger.info("다운로드용 바이너리 컨텐츠 생성 완료");
 
     // When & Then
     mockMvc.perform(get("/api/binaryContents/{binaryContentId}/download", binaryContentId))
@@ -224,26 +193,17 @@ class BinaryContentApiIntegrationTest {
             "attachment; filename=\"download-test.txt\""))
         .andExpect(content().contentType(MediaType.TEXT_PLAIN_VALUE))
         .andExpect(content().bytes(fileContent.getBytes()));
-
-    logger.info("==== 바이너리 컨텐츠 다운로드 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("존재하지 않는 바이너리 컨텐츠 다운로드 API 통합 테스트")
   void downloadBinaryContent_Failure_NotFound() throws Exception {
-    logger.info("==== 존재하지 않는 바이너리 컨텐츠 다운로드 API 통합 테스트 시작 ====");
-
     // Given
     UUID nonExistentBinaryContentId = UUID.randomUUID();
-    logger.info("존재하지 않는 UUID 생성 완료: {}", nonExistentBinaryContentId);
 
     // When & Then
     mockMvc.perform(
             get("/api/binaryContents/{binaryContentId}/download", nonExistentBinaryContentId))
         .andExpect(status().isNotFound());
-
-    logger.info("==== 존재하지 않는 바이너리 컨텐츠 다운로드 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
-}
+} 

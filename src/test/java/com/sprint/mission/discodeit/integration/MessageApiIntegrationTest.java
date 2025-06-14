@@ -26,8 +26,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,8 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional
 class MessageApiIntegrationTest {
-
-  private static final Logger logger = LoggerFactory.getLogger(MessageApiIntegrationTest.class);
 
   @Autowired
   private MockMvc mockMvc;
@@ -63,8 +59,6 @@ class MessageApiIntegrationTest {
   @Test
   @DisplayName("메시지 생성 API 통합 테스트")
   void createMessage_Success() throws Exception {
-    logger.info("==== 메시지 생성 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 채널 생성
     PublicChannelCreateRequest channelRequest = new PublicChannelCreateRequest(
@@ -73,7 +67,6 @@ class MessageApiIntegrationTest {
     );
 
     ChannelDto channel = channelService.create(channelRequest);
-    logger.info("테스트 채널 생성 완료: {}", channel.id());
 
     // 테스트 사용자 생성
     UserCreateRequest userRequest = new UserCreateRequest(
@@ -83,7 +76,6 @@ class MessageApiIntegrationTest {
     );
 
     UserDto user = userService.create(userRequest, Optional.empty());
-    logger.info("테스트 사용자 생성 완료: {}", user.id());
 
     // 메시지 생성 요청
     MessageCreateRequest createRequest = new MessageCreateRequest(
@@ -106,8 +98,6 @@ class MessageApiIntegrationTest {
         "테스트 첨부 파일 내용".getBytes()
     );
 
-    logger.info("메시지 생성 요청 데이터 준비 완료");
-
     // When & Then
     mockMvc.perform(multipart("/api/messages")
             .file(messageCreateRequestPart)
@@ -119,16 +109,11 @@ class MessageApiIntegrationTest {
         .andExpect(jsonPath("$.author.id", is(user.id().toString())))
         .andExpect(jsonPath("$.attachments", hasSize(1)))
         .andExpect(jsonPath("$.attachments[0].fileName", is("test.txt")));
-
-    logger.info("==== 메시지 생성 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("메시지 생성 실패 API 통합 테스트 - 유효하지 않은 요청")
   void createMessage_Failure_InvalidRequest() throws Exception {
-    logger.info("==== 메시지 생성 실패 API 통합 테스트 - 유효하지 않은 요청 시작 ====");
-
     // Given
     MessageCreateRequest invalidRequest = new MessageCreateRequest(
         "", // 내용이 비어있음
@@ -143,22 +128,15 @@ class MessageApiIntegrationTest {
         objectMapper.writeValueAsBytes(invalidRequest)
     );
 
-    logger.info("유효하지 않은 메시지 생성 요청 데이터 준비 완료");
-
     // When & Then
     mockMvc.perform(multipart("/api/messages")
             .file(messageCreateRequestPart))
-        .andExpect(status().isNotFound());
-
-    logger.info("==== 메시지 생성 실패 API 통합 테스트 - 유효하지 않은 요청 완료 ====");
-    System.out.println("\n");
+        .andExpect(status().isBadRequest());
   }
 
   @Test
   @DisplayName("채널별 메시지 목록 조회 API 통합 테스트")
   void findAllMessagesByChannelId_Success() throws Exception {
-    logger.info("==== 채널별 메시지 목록 조회 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 채널 생성
     PublicChannelCreateRequest channelRequest = new PublicChannelCreateRequest(
@@ -167,7 +145,6 @@ class MessageApiIntegrationTest {
     );
 
     ChannelDto channel = channelService.create(channelRequest);
-    logger.info("테스트 채널 생성 완료: {}", channel.id());
 
     // 테스트 사용자 생성
     UserCreateRequest userRequest = new UserCreateRequest(
@@ -177,7 +154,6 @@ class MessageApiIntegrationTest {
     );
 
     UserDto user = userService.create(userRequest, Optional.empty());
-    logger.info("테스트 사용자 생성 완료: {}", user.id());
 
     // 메시지 생성
     MessageCreateRequest messageRequest1 = new MessageCreateRequest(
@@ -194,7 +170,6 @@ class MessageApiIntegrationTest {
 
     messageService.create(messageRequest1, new ArrayList<>());
     messageService.create(messageRequest2, new ArrayList<>());
-    logger.info("테스트 메시지 2개 생성 완료");
 
     // When & Then
     mockMvc.perform(get("/api/messages")
@@ -207,16 +182,11 @@ class MessageApiIntegrationTest {
         .andExpect(jsonPath("$.size").exists())
         .andExpect(jsonPath("$.hasNext").exists())
         .andExpect(jsonPath("$.totalElements").isEmpty());
-
-    logger.info("==== 채널별 메시지 목록 조회 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("메시지 업데이트 API 통합 테스트")
   void updateMessage_Success() throws Exception {
-    logger.info("==== 메시지 업데이트 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 채널 생성
     PublicChannelCreateRequest channelRequest = new PublicChannelCreateRequest(
@@ -225,7 +195,6 @@ class MessageApiIntegrationTest {
     );
 
     ChannelDto channel = channelService.create(channelRequest);
-    logger.info("테스트 채널 생성 완료: {}", channel.id());
 
     // 테스트 사용자 생성
     UserCreateRequest userRequest = new UserCreateRequest(
@@ -235,7 +204,6 @@ class MessageApiIntegrationTest {
     );
 
     UserDto user = userService.create(userRequest, Optional.empty());
-    logger.info("테스트 사용자 생성 완료: {}", user.id());
 
     // 메시지 생성
     MessageCreateRequest createRequest = new MessageCreateRequest(
@@ -246,7 +214,6 @@ class MessageApiIntegrationTest {
 
     MessageDto createdMessage = messageService.create(createRequest, new ArrayList<>());
     UUID messageId = createdMessage.id();
-    logger.info("원본 메시지 생성 완료: {}", messageId);
 
     // 메시지 업데이트 요청
     MessageUpdateRequest updateRequest = new MessageUpdateRequest(
@@ -254,7 +221,6 @@ class MessageApiIntegrationTest {
     );
 
     String requestBody = objectMapper.writeValueAsString(updateRequest);
-    logger.info("메시지 업데이트 요청 데이터 준비 완료");
 
     // When & Then
     mockMvc.perform(patch("/api/messages/{messageId}", messageId)
@@ -264,42 +230,30 @@ class MessageApiIntegrationTest {
         .andExpect(jsonPath("$.id", is(messageId.toString())))
         .andExpect(jsonPath("$.content", is("수정된 메시지 내용입니다.")))
         .andExpect(jsonPath("$.updatedAt").exists());
-
-    logger.info("==== 메시지 업데이트 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("메시지 업데이트 실패 API 통합 테스트 - 존재하지 않는 메시지")
   void updateMessage_Failure_MessageNotFound() throws Exception {
-    logger.info("==== 메시지 업데이트 실패 API 통합 테스트 - 존재하지 않는 메시지 시작 ====");
-
     // Given
     UUID nonExistentMessageId = UUID.randomUUID();
-    logger.info("존재하지 않는 메시지 ID 생성: {}", nonExistentMessageId);
 
     MessageUpdateRequest updateRequest = new MessageUpdateRequest(
         "수정된 메시지 내용입니다."
     );
 
     String requestBody = objectMapper.writeValueAsString(updateRequest);
-    logger.info("메시지 업데이트 요청 데이터 준비 완료");
 
     // When & Then
     mockMvc.perform(patch("/api/messages/{messageId}", nonExistentMessageId)
             .contentType(MediaType.APPLICATION_JSON)
             .content(requestBody))
         .andExpect(status().isNotFound());
-
-    logger.info("==== 메시지 업데이트 실패 API 통합 테스트 - 존재하지 않는 메시지 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("메시지 삭제 API 통합 테스트")
   void deleteMessage_Success() throws Exception {
-    logger.info("==== 메시지 삭제 API 통합 테스트 시작 ====");
-
     // Given
     // 테스트 채널 생성
     PublicChannelCreateRequest channelRequest = new PublicChannelCreateRequest(
@@ -308,7 +262,6 @@ class MessageApiIntegrationTest {
     );
 
     ChannelDto channel = channelService.create(channelRequest);
-    logger.info("테스트 채널 생성 완료: {}", channel.id());
 
     // 테스트 사용자 생성
     UserCreateRequest userRequest = new UserCreateRequest(
@@ -318,7 +271,6 @@ class MessageApiIntegrationTest {
     );
 
     UserDto user = userService.create(userRequest, Optional.empty());
-    logger.info("테스트 사용자 생성 완료: {}", user.id());
 
     // 메시지 생성
     MessageCreateRequest createRequest = new MessageCreateRequest(
@@ -329,12 +281,10 @@ class MessageApiIntegrationTest {
 
     MessageDto createdMessage = messageService.create(createRequest, new ArrayList<>());
     UUID messageId = createdMessage.id();
-    logger.info("삭제할 메시지 생성 완료: {}", messageId);
 
     // When & Then
     mockMvc.perform(delete("/api/messages/{messageId}", messageId))
         .andExpect(status().isNoContent());
-    logger.info("메시지 삭제 요청 완료");
 
     // 삭제 확인 - 채널의 메시지 목록 조회 시 삭제된 메시지는 조회되지 않아야 함
     mockMvc.perform(get("/api/messages")
@@ -342,25 +292,16 @@ class MessageApiIntegrationTest {
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content", hasSize(0)));
-
-    logger.info("==== 메시지 삭제 API 통합 테스트 완료 ====");
-    System.out.println("\n");
   }
 
   @Test
   @DisplayName("메시지 삭제 실패 API 통합 테스트 - 존재하지 않는 메시지")
   void deleteMessage_Failure_MessageNotFound() throws Exception {
-    logger.info("==== 메시지 삭제 실패 API 통합 테스트 - 존재하지 않는 메시지 시작 ====");
-
     // Given
     UUID nonExistentMessageId = UUID.randomUUID();
-    logger.info("존재하지 않는 메시지 ID 생성: {}", nonExistentMessageId);
 
     // When & Then
     mockMvc.perform(delete("/api/messages/{messageId}", nonExistentMessageId))
         .andExpect(status().isNotFound());
-
-    logger.info("==== 메시지 삭제 실패 API 통합 테스트 - 존재하지 않는 메시지 완료 ====");
-    System.out.println("\n");
   }
-}
+} 
